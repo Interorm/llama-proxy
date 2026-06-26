@@ -147,7 +147,7 @@ async def ensure_inference_ready():
             for _ in range(30):
                 await asyncio.sleep(2)
                 try:
-                    if is_llama_running(): 
+                    if await is_llama_running(): 
                         PC_STATE = 'ready'
                         break
                 except Exception: pass
