@@ -188,7 +188,6 @@ async def proxy(request: Request, path: str):
     headers = dict(request.headers)
     headers.pop("host", None)
     headers.pop("accept-encoding", None)
-    headers["Connection"] = "close"
 
 
     req = HTTP_CLIENT.build_request(
