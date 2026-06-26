@@ -235,12 +235,16 @@ async def ensure_inference_ready(model_id: str):
         raise RuntimeError(f"[MODEL LOADING ERROR] Can't use model {model_id} when {LOADED_MODEL} is active")
 
     print(f'[PREPARE] Checking and Starting Inference Engine')
-    if PC_STATE == 'ready': return
+    print(f'[PREPARE] Checking and Starting Inference Engine')
+    if PC_STATE == 'ready' and (model_id is None or model_id == LOADED_MODEL): return
     if PC_STATE == 'starting': raise RuntimeError('[PREPARE ERROR] Another client is already starting the Inference Machine, please wait')
     if PC_STATE == 'do-not-disturb': raise RuntimeError("[DO-NOT-DISTURB] Request blocked by owner")    
 
     async with BOOT_LOCK:
-        if PC_STATE == 'ready': return
+        if model_id is not None and model_id != LOADED_MODEL and LOADED_MODEL is not None: 
+            raise RuntimeError(f"[MODEL LOADING ERROR] Can't use model {model_id} when {LOADED_MODEL} is active")
+        if PC_STATE == 'ready' and (model_id is None or model_id == LOADED_MODEL): return
+        if PC_STATE == 'starting': raise RuntimeError('[PREPARE ERROR] Another client is already starting the Inference Machine, please wait')
         if PC_STATE == 'do-not-disturb': raise RuntimeError("[DO-NOT-DISTURB] Request blocked by owner")
 
         if not await is_pc_reachable():
@@ -308,8 +312,7 @@ async def proxy(request: Request, path: str):
     headers.pop("accept-encoding", None)
 
     model_id = None
-    if request.method == "POST" and body\
-       and any([p in path for p in ['completion', 'embedding', 'tokenize', 'detokenize', 'infill', 'rerank']]):
+    if request.method == "POST" and body:
         try:
             data = json.loads(body)
             model_id = data.get("model")
