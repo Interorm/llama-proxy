@@ -231,7 +231,7 @@ async def is_model_loaded(model_id: str) -> bool:
 async def ensure_inference_ready(model_id: str):
     global PC_STATE, LOADED_MODEL
 
-    if model_id is not None and model_id != LOADED_MODEL: 
+    if model_id is not None and model_id != LOADED_MODEL and LOADED_MODEL is not None: 
         raise RuntimeError(f"[MODEL LOADING ERROR] Can't use model {model_id} when {LOADED_MODEL} is active")
 
     print(f'[PREPARE] Checking and Starting Inference Engine')
