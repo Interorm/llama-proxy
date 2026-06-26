@@ -23,7 +23,8 @@ LAST_REQUEST_TIME = time.time()
 PC_STATE: Literal['unknown', 'ready', 'starting', 'do-not-disturb', 'off'] = 'unknown'
 
 
-def send_wol(): subprocess.run(["wakeonlan", WINDOWS_MAC])
+async def send_wol(): await asyncio.create_subprocess_exec("wakeonlan", WINDOWS_MAC)
+
 
 async def ssh_run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_exec(
@@ -71,7 +72,7 @@ async def check_avaibility():
     global PC_STATE
 
     while True:
-        await asyncio.sleep(120)
+        await asyncio.sleep(30)
         if not await is_pc_reachable():
             if PC_STATE != 'starting': PC_STATE = 'off'
             continue
@@ -85,12 +86,17 @@ async def check_avaibility():
 @app.on_event("startup")
 async def startup():
     global BOOT_LOCK, HTTP_CLIENT
+
     BOOT_LOCK = asyncio.Lock()
     HTTP_CLIENT = httpx.AsyncClient(
-        limits=httpx.Limits(max_connections=10, max_keepalive_connections=5)
+        limits=httpx.Limits(
+            max_connections=10, 
+            max_keepalive_connections=0  
+        )
     )
     asyncio.create_task(shutdown_if_idle())
     asyncio.create_task(check_avaibility())
+
 
 
 @app.on_event("shutdown")
@@ -130,7 +136,7 @@ async def ensure_inference_ready():
 
         if not await is_pc_reachable():
             PC_STATE = 'starting'
-            send_wol()
+            await send_wol()
             for _ in range(60):
                 await asyncio.sleep(2)
                 if await is_pc_reachable():
@@ -147,12 +153,17 @@ async def ensure_inference_ready():
             for _ in range(30):
                 await asyncio.sleep(2)
                 try:
-                    if await is_llama_running(): 
-                        PC_STATE = 'ready'
-                        break
+                    if await is_llama_running(): break
                 except Exception: pass
             else: 
                 PC_STATE = 'unknown'
+                raise RuntimeError("Llama server failed to start.")
+
+            await asyncio.sleep(5)  
+            if not await is_llama_running():
+                raise RuntimeError("Llama server became unresponsive after startup.")
+
+            PC_STATE = 'ready'
         else: 
             PC_STATE = 'ready'
 
@@ -177,6 +188,8 @@ async def proxy(request: Request, path: str):
     headers = dict(request.headers)
     headers.pop("host", None)
     headers.pop("accept-encoding", None)
+    headers["Connection"] = "close"
+
 
     req = HTTP_CLIENT.build_request(
         method=request.method,
@@ -184,10 +197,7 @@ async def proxy(request: Request, path: str):
         headers=headers,
         content=body,
     )
-    resp = await HTTP_CLIENT.send(
-        req,
-        stream=True,
-    )
+    resp = await HTTP_CLIENT.send(req, stream=True, timeout=300.0)
 
     async def body_iterator():
         try:
