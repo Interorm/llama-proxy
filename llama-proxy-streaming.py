@@ -330,7 +330,7 @@ async def proxy(request: Request, path: str):
         headers=headers,
         content=body,
     )
-    resp = await HTTP_CLIENT.send(req, stream=True, timeout=300.0)
+    resp = await HTTP_CLIENT.send(req, stream=True)
 
     async def body_iterator():
         try:
