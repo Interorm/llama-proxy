@@ -308,7 +308,8 @@ async def proxy(request: Request, path: str):
     headers.pop("accept-encoding", None)
 
     model_id = None
-    if request.method == "POST" and body:
+    if request.method == "POST" and body\
+       and any([p in path for p in ['completion', 'embedding', 'tokenize', 'detokenize', 'infill', 'rerank']]):
         try:
             data = json.loads(body)
             model_id = data.get("model")
