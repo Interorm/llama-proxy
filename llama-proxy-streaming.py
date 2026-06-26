@@ -21,7 +21,7 @@ app = FastAPI()
 HTTP_CLIENT: httpx.AsyncClient = None
 LAST_REQUEST_TIME = time.time()
 PC_STATE: Literal['unknown', 'ready', 'starting', 'do-not-disturb', 'off'] = 'unknown'
-LOADED_MODEL: str | None
+LOADED_MODEL: str | None = None
 
 async def send_wol(): await asyncio.create_subprocess_exec("wakeonlan", WINDOWS_MAC)
 
